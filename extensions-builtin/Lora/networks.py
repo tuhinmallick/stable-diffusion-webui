@@ -157,8 +157,7 @@ def load_network(name, network_on_disk):
         sd_module = shared.sd_model.network_layer_mapping.get(key, None)
 
         if sd_module is None:
-            m = re_x_proj.match(key)
-            if m:
+            if m := re_x_proj.match(key):
                 sd_module = shared.sd_model.network_layer_mapping.get(m.group(1), None)
 
         # SDXL loras seem to already have correct compvis keys, so only need to replace "lora_unet" with "diffusion_model"
@@ -210,12 +209,9 @@ def purge_networks_from_memory():
 
 
 def load_networks(names, te_multipliers=None, unet_multipliers=None, dyn_dims=None):
-    already_loaded = {}
-
-    for net in loaded_networks:
-        if net.name in names:
-            already_loaded[net.name] = net
-
+    already_loaded = {
+        net.name: net for net in loaded_networks if net.name in names
+    }
     loaded_networks.clear()
 
     networks_on_disk = [available_network_aliases.get(name, None) for name in names]
@@ -277,16 +273,16 @@ def network_restore_weights_from_backup(self: Union[torch.nn.Conv2d, torch.nn.Li
         else:
             self.weight.copy_(weights_backup)
 
-    if bias_backup is not None:
-        if isinstance(self, torch.nn.MultiheadAttention):
-            self.out_proj.bias.copy_(bias_backup)
-        else:
-            self.bias.copy_(bias_backup)
-    else:
+    if bias_backup is None:
         if isinstance(self, torch.nn.MultiheadAttention):
             self.out_proj.bias = None
         else:
             self.bias = None
+
+    elif isinstance(self, torch.nn.MultiheadAttention):
+        self.out_proj.bias.copy_(bias_backup)
+    else:
+        self.bias.copy_(bias_backup)
 
 
 def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, torch.nn.MultiheadAttention]):
@@ -351,10 +347,10 @@ def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn
 
                 continue
 
-            module_q = net.modules.get(network_layer_name + "_q_proj", None)
-            module_k = net.modules.get(network_layer_name + "_k_proj", None)
-            module_v = net.modules.get(network_layer_name + "_v_proj", None)
-            module_out = net.modules.get(network_layer_name + "_out_proj", None)
+            module_q = net.modules.get(f"{network_layer_name}_q_proj", None)
+            module_k = net.modules.get(f"{network_layer_name}_k_proj", None)
+            module_v = net.modules.get(f"{network_layer_name}_v_proj", None)
+            module_out = net.modules.get(f"{network_layer_name}_out_proj", None)
 
             if isinstance(self, torch.nn.MultiheadAttention) and module_q and module_k and module_v and module_out:
                 try:
@@ -538,18 +534,17 @@ def infotext_pasted(infotext, params):
 
         num = k[13:]
 
-        if params.get("AddNet Module " + num) != "LoRA":
+        if params.get(f"AddNet Module {num}") != "LoRA":
             continue
 
-        name = params.get("AddNet Model " + num)
+        name = params.get(f"AddNet Model {num}")
         if name is None:
             continue
 
-        m = re_network_name.match(name)
-        if m:
+        if m := re_network_name.match(name):
             name = m.group(1)
 
-        multiplier = params.get("AddNet Weight A " + num, "1.0")
+        multiplier = params.get(f"AddNet Weight A {num}", "1.0")
 
         added.append(f"<lora:{name}:{multiplier}>")
 

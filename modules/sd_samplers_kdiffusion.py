@@ -109,10 +109,10 @@ class KDiffusionSampler(sd_samplers_common.Sampler):
             sigmas_func = k_diffusion_scheduler[opts.k_sched_type]
             p.extra_generation_params["Schedule type"] = opts.k_sched_type
 
-            if opts.sigma_min != m_sigma_min and opts.sigma_min != 0:
+            if opts.sigma_min not in [m_sigma_min, 0]:
                 sigmas_kwargs['sigma_min'] = opts.sigma_min
                 p.extra_generation_params["Schedule min sigma"] = opts.sigma_min
-            if opts.sigma_max != m_sigma_max and opts.sigma_max != 0:
+            if opts.sigma_max not in [m_sigma_max, 0]:
                 sigmas_kwargs['sigma_max'] = opts.sigma_max
                 p.extra_generation_params["Schedule max sigma"] = opts.sigma_max
 

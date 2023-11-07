@@ -32,7 +32,12 @@ class NetworkOnDisk:
 
         if self.is_safetensors:
             try:
-                self.metadata = cache.cached_data_for_file('safetensors-metadata', "lora/" + self.name, filename, read_metadata)
+                self.metadata = cache.cached_data_for_file(
+                    'safetensors-metadata',
+                    f"lora/{self.name}",
+                    filename,
+                    read_metadata,
+                )
             except Exception as e:
                 errors.display(e, f"reading lora {filename}")
 
@@ -48,9 +53,13 @@ class NetworkOnDisk:
         self.hash = None
         self.shorthash = None
         self.set_hash(
-            self.metadata.get('sshs_model_hash') or
-            hashes.sha256_from_cache(self.filename, "lora/" + self.name, use_addnet_hash=self.is_safetensors) or
-            ''
+            self.metadata.get('sshs_model_hash')
+            or hashes.sha256_from_cache(
+                self.filename,
+                f"lora/{self.name}",
+                use_addnet_hash=self.is_safetensors,
+            )
+            or ''
         )
 
         self.sd_version = self.detect_version()
@@ -67,7 +76,7 @@ class NetworkOnDisk:
 
     def set_hash(self, v):
         self.hash = v
-        self.shorthash = self.hash[0:12]
+        self.shorthash = self.hash[:12]
 
         if self.shorthash:
             import networks
@@ -75,7 +84,14 @@ class NetworkOnDisk:
 
     def read_hash(self):
         if not self.hash:
-            self.set_hash(hashes.sha256(self.filename, "lora/" + self.name, use_addnet_hash=self.is_safetensors) or '')
+            self.set_hash(
+                hashes.sha256(
+                    self.filename,
+                    f"lora/{self.name}",
+                    use_addnet_hash=self.is_safetensors,
+                )
+                or ''
+            )
 
     def get_alias(self):
         import networks
@@ -128,10 +144,7 @@ class NetworkModule:
     def calc_scale(self):
         if self.scale is not None:
             return self.scale
-        if self.dim is not None and self.alpha is not None:
-            return self.alpha / self.dim
-
-        return 1.0
+        return 1.0 if self.dim is None or self.alpha is None else self.alpha / self.dim
 
     def finalize_updown(self, updown, orig_weight, output_shape, ex_bias=None):
         if self.bias is not None:

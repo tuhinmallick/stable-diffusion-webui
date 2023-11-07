@@ -39,7 +39,7 @@ def print_error_explanation(message):
     record_exception()
 
     lines = message.strip().split("\n")
-    max_len = max([len(x) for x in lines])
+    max_len = max(len(x) for x in lines)
 
     print('=' * max_len, file=sys.stderr)
     for line in lines:
@@ -94,7 +94,6 @@ def check_versions():
     import gradio
 
     expected_torch_version = "2.0.0"
-    expected_xformers_version = "0.0.20"
     expected_gradio_version = "3.41.2"
 
     if version.parse(torch.__version__) < version.parse(expected_torch_version):
@@ -111,6 +110,7 @@ Use --skip-version-check commandline argument to disable this check.
     if shared.xformers_available:
         import xformers
 
+        expected_xformers_version = "0.0.20"
         if version.parse(xformers.__version__) < version.parse(expected_xformers_version):
             print_error_explanation(f"""
 You are running xformers {xformers.__version__}.

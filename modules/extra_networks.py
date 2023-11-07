@@ -211,7 +211,7 @@ def get_user_metadata(filename):
         return {}
 
     basename, ext = os.path.splitext(filename)
-    metadata_filename = basename + '.json'
+    metadata_filename = f'{basename}.json'
 
     metadata = {}
     try:

@@ -81,8 +81,7 @@ class LoraUserMetadataEditor(ui_extra_networks_user_metadata.UserMetadataEditor)
             if value is not None and str(value) != "None":
                 table.append((label, html.escape(value)))
 
-        ss_training_started_at = metadata.get('ss_training_started_at')
-        if ss_training_started_at:
+        if ss_training_started_at := metadata.get('ss_training_started_at'):
             table.append(("Date trained:", datetime.datetime.utcfromtimestamp(float(ss_training_started_at)).strftime('%Y-%m-%d %H:%M')))
 
         ss_bucket_info = metadata.get("ss_bucket_info")
@@ -95,18 +94,17 @@ class LoraUserMetadataEditor(ui_extra_networks_user_metadata.UserMetadataEditor)
                 resolutions[resolution] = resolutions.get(resolution, 0) + int(bucket["count"])
 
             resolutions_list = sorted(resolutions.keys(), key=resolutions.get, reverse=True)
-            resolutions_text = html.escape(", ".join(resolutions_list[0:4]))
+            resolutions_text = html.escape(", ".join(resolutions_list[:4]))
             if len(resolutions) > 4:
                 resolutions_text += ", ..."
                 resolutions_text = f"<span title='{html.escape(', '.join(resolutions_list))}'>{resolutions_text}</span>"
 
             table.append(('Resolutions:' if len(resolutions_list) > 1 else 'Resolution:', resolutions_text))
 
-        image_count = 0
-        for _, params in metadata.get("ss_dataset_dirs", {}).items():
-            image_count += int(params.get("img_count", 0))
-
-        if image_count:
+        if image_count := sum(
+            int(params.get("img_count", 0))
+            for _, params in metadata.get("ss_dataset_dirs", {}).items()
+        ):
             table.append(("Dataset size:", image_count))
 
         return table
@@ -119,16 +117,19 @@ class LoraUserMetadataEditor(ui_extra_networks_user_metadata.UserMetadataEditor)
         metadata = item.get("metadata") or {}
 
         tags = build_tags(metadata)
-        gradio_tags = [(tag, str(count)) for tag, count in tags[0:24]]
+        gradio_tags = [(tag, str(count)) for tag, count in tags[:24]]
 
         return [
-            *values[0:5],
+            *values[:5],
             item.get("sd_version", "Unknown"),
-            gr.HighlightedText.update(value=gradio_tags, visible=True if tags else False),
+            gr.HighlightedText.update(value=gradio_tags, visible=bool(tags)),
             user_metadata.get('activation text', ''),
             float(user_metadata.get('preferred weight', 0.0)),
-            gr.update(visible=True if tags else False),
-            gr.update(value=self.generate_random_prompt_from_tags(tags), visible=True if tags else False),
+            gr.update(visible=bool(tags)),
+            gr.update(
+                value=self.generate_random_prompt_from_tags(tags),
+                visible=bool(tags),
+            ),
         ]
 
     def generate_random_prompt(self, name):
@@ -182,7 +183,7 @@ class LoraUserMetadataEditor(ui_extra_networks_user_metadata.UserMetadataEditor)
                 words = [x for x in words if x != tag and x.strip()]
                 return ", ".join(words)
 
-            return activation_text + ", " + tag if activation_text else tag
+            return f"{activation_text}, {tag}" if activation_text else tag
 
         self.taginfo.select(fn=select_tag, inputs=[self.edit_activation_text], outputs=[self.edit_activation_text], show_progress=False)
 
@@ -203,8 +204,8 @@ class LoraUserMetadataEditor(ui_extra_networks_user_metadata.UserMetadataEditor)
         ]
 
         self.button_edit\
-            .click(fn=self.put_values_into_components, inputs=[self.edit_name_input], outputs=viewed_components)\
-            .then(fn=lambda: gr.update(visible=True), inputs=[], outputs=[self.box])
+                .click(fn=self.put_values_into_components, inputs=[self.edit_name_input], outputs=viewed_components)\
+                .then(fn=lambda: gr.update(visible=True), inputs=[], outputs=[self.box])
 
         edited_components = [
             self.edit_description,

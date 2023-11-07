@@ -155,7 +155,7 @@ class InterrogateModels:
         devices.torch_gc()
 
         if shared.opts.interrogate_clip_dict_limit != 0:
-            text_array = text_array[0:int(shared.opts.interrogate_clip_dict_limit)]
+            text_array = text_array[:int(shared.opts.interrogate_clip_dict_limit)]
 
         top_count = min(top_count, len(text_array))
         text_tokens = clip.tokenize(list(text_array), truncate=True).to(devices.device_interrogate)

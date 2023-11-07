@@ -85,13 +85,13 @@ def ui_reorder_categories():
 
     yield from ui_reorder_categories_builtin_items
 
-    sections = {}
-    for script in scripts.scripts_txt2img.scripts + scripts.scripts_img2img.scripts:
-        if isinstance(script.section, str) and script.section not in ui_reorder_categories_builtin_items:
-            sections[script.section] = 1
-
-    yield from sections
-
+    yield from {
+        script.section: 1
+        for script in scripts.scripts_txt2img.scripts
+        + scripts.scripts_img2img.scripts
+        if isinstance(script.section, str)
+        and script.section not in ui_reorder_categories_builtin_items
+    }
     yield "scripts"
 
 

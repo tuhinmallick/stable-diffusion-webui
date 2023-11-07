@@ -92,7 +92,10 @@ def decoder_model():
 
     if loaded_model is None:
         model_path = os.path.join(paths_internal.models_path, "VAE-taesd", model_name)
-        download_model(model_path, 'https://github.com/madebyollin/taesd/raw/main/' + model_name)
+        download_model(
+            model_path,
+            f'https://github.com/madebyollin/taesd/raw/main/{model_name}',
+        )
 
         if os.path.exists(model_path):
             loaded_model = TAESDDecoder(model_path)
@@ -111,7 +114,10 @@ def encoder_model():
 
     if loaded_model is None:
         model_path = os.path.join(paths_internal.models_path, "VAE-taesd", model_name)
-        download_model(model_path, 'https://github.com/madebyollin/taesd/raw/main/' + model_name)
+        download_model(
+            model_path,
+            f'https://github.com/madebyollin/taesd/raw/main/{model_name}',
+        )
 
         if os.path.exists(model_path):
             loaded_model = TAESDEncoder(model_path)

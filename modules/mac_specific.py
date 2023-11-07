@@ -14,16 +14,15 @@ log = logging.getLogger(__name__)
 # in torch version 1.13, backends.mps.is_available() and backends.mps.is_built() are introduced in to check mps availabilty,
 # since torch 2.0.1+ nightly build, getattr(torch, 'has_mps', False) was deprecated, see https://github.com/pytorch/pytorch/pull/103279
 def check_for_mps() -> bool:
-    if version.parse(torch.__version__) <= version.parse("2.0.1"):
-        if not getattr(torch, 'has_mps', False):
-            return False
-        try:
-            torch.zeros(1).to(torch.device("mps"))
-            return True
-        except Exception:
-            return False
-    else:
+    if version.parse(torch.__version__) > version.parse("2.0.1"):
         return torch.backends.mps.is_available() and torch.backends.mps.is_built()
+    if not getattr(torch, 'has_mps', False):
+        return False
+    try:
+        torch.zeros(1).to(torch.device("mps"))
+        return True
+    except Exception:
+        return False
 
 
 has_mps = check_for_mps()
@@ -46,7 +45,11 @@ def cumsum_fix(input, cumsum_func, *args, **kwargs):
         output_dtype = kwargs.get('dtype', input.dtype)
         if output_dtype == torch.int64:
             return cumsum_func(input.cpu(), *args, **kwargs).to(input.device)
-        elif output_dtype == torch.bool or cumsum_needs_int_fix and (output_dtype == torch.int8 or output_dtype == torch.int16):
+        elif (
+            output_dtype == torch.bool
+            or cumsum_needs_int_fix
+            and output_dtype in [torch.int8, torch.int16]
+        ):
             return cumsum_func(input.to(torch.int32), *args, **kwargs).to(torch.int64)
     return cumsum_func(input, *args, **kwargs)
 

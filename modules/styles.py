@@ -14,12 +14,9 @@ class PromptStyle(typing.NamedTuple):
 
 def merge_prompts(style_prompt: str, prompt: str) -> str:
     if "{prompt}" in style_prompt:
-        res = style_prompt.replace("{prompt}", prompt)
-    else:
-        parts = filter(None, (prompt.strip(), style_prompt.strip()))
-        res = ", ".join(parts)
-
-    return res
+        return style_prompt.replace("{prompt}", prompt)
+    parts = filter(None, (prompt.strip(), style_prompt.strip()))
+    return ", ".join(parts)
 
 
 def apply_styles_to_prompt(prompt, styles):
@@ -40,14 +37,13 @@ def extract_style_text_from_prompt(style_text, prompt):
         if stripped_prompt.startswith(left) and stripped_prompt.endswith(right):
             prompt = stripped_prompt[len(left):len(stripped_prompt)-len(right)]
             return True, prompt
-    else:
-        if stripped_prompt.endswith(stripped_style_text):
-            prompt = stripped_prompt[:len(stripped_prompt)-len(stripped_style_text)]
+    elif stripped_prompt.endswith(stripped_style_text):
+        prompt = stripped_prompt[:len(stripped_prompt)-len(stripped_style_text)]
 
-            if prompt.endswith(', '):
-                prompt = prompt[:-2]
+        if prompt.endswith(', '):
+            prompt = prompt[:-2]
 
-            return True, prompt
+        return True, prompt
 
     return False, prompt
 

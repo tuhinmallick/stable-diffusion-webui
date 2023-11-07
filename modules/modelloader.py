@@ -69,7 +69,7 @@ def load_models(model_path: str, model_url: str = None, command_path: str = None
                 if full_path not in output:
                     output.append(full_path)
 
-        if model_url is not None and len(output) == 0:
+        if model_url is not None and not output:
             if download_name is not None:
                 output.append(load_file_from_url(model_url, model_dir=places[0], file_name=download_name))
             else:

@@ -37,8 +37,7 @@ def IOComponent_init(self, *args, **kwargs):
 def Block_get_config(self):
     config = original_Block_get_config(self)
 
-    webui_tooltip = getattr(self, 'webui_tooltip', None)
-    if webui_tooltip:
+    if webui_tooltip := getattr(self, 'webui_tooltip', None):
         config["webui_tooltip"] = webui_tooltip
 
     config.pop('example_inputs', None)

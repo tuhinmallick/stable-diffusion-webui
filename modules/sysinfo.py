@@ -51,9 +51,7 @@ def get():
     text = json.dumps(res, ensure_ascii=False, indent=4)
 
     h = hashlib.sha256(text.encode("utf8"))
-    text = text.replace(checksum_token, h.hexdigest())
-
-    return text
+    return text.replace(checksum_token, h.hexdigest())
 
 
 re_checksum = re.compile(r'"Checksum": "([0-9a-fA-F]{64})"')
@@ -73,7 +71,7 @@ def check(x):
 def get_dict():
     ram = psutil.virtual_memory()
 
-    res = {
+    return {
         "Platform": platform.platform(),
         "Python": platform.python_version(),
         "Version": launch.git_tag(),
@@ -91,17 +89,28 @@ def get_dict():
             "count physical": psutil.cpu_count(logical=False),
         },
         "RAM": {
-            x: pretty_bytes(getattr(ram, x, 0)) for x in ["total", "used", "free", "active", "inactive", "buffers", "cached", "shared"] if getattr(ram, x, 0) != 0
+            x: pretty_bytes(getattr(ram, x, 0))
+            for x in [
+                "total",
+                "used",
+                "free",
+                "active",
+                "inactive",
+                "buffers",
+                "cached",
+                "shared",
+            ]
+            if getattr(ram, x, 0) != 0
         },
         "Extensions": get_extensions(enabled=True),
         "Inactive extensions": get_extensions(enabled=False),
         "Environment": get_environment(),
         "Config": get_config(),
         "Startup": timer.startup_record,
-        "Packages": sorted([f"{pkg.key}=={pkg.version}" for pkg in pkg_resources.working_set]),
+        "Packages": sorted(
+            [f"{pkg.key}=={pkg.version}" for pkg in pkg_resources.working_set]
+        ),
     }
-
-    return res
 
 
 def format_traceback(tb):

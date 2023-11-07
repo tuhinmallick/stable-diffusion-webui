@@ -50,7 +50,10 @@ def model():
 
         if not os.path.exists(model_path):
             model_path = os.path.join(paths.models_path, "VAE-approx", model_name)
-            download_model(model_path, 'https://github.com/AUTOMATIC1111/stable-diffusion-webui/releases/download/v1.0.0-pre/' + model_name)
+            download_model(
+                model_path,
+                f'https://github.com/AUTOMATIC1111/stable-diffusion-webui/releases/download/v1.0.0-pre/{model_name}',
+            )
 
         loaded_model = VAEApprox()
         loaded_model.load_state_dict(torch.load(model_path, map_location='cpu' if devices.device.type != 'cuda' else None))
@@ -81,6 +84,4 @@ def cheap_approximation(sample):
 
     coefs = torch.tensor(coeffs).to(sample.device)
 
-    x_sample = torch.einsum("...lxy,lr -> ...rxy", sample, coefs)
-
-    return x_sample
+    return torch.einsum("...lxy,lr -> ...rxy", sample, coefs)

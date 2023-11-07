@@ -149,10 +149,7 @@ class Options:
         """returns the default value for the key"""
 
         data_label = self.data_labels.get(key)
-        if data_label is None:
-            return None
-
-        return data_label.default
+        return None if data_label is None else data_label.default
 
     def save(self, filename):
         assert not cmd_opts.freeze_settings, "saving settings is disabled"

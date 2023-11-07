@@ -28,20 +28,33 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
             "shorthash": lora_on_disk.shorthash,
             "preview": self.find_preview(path),
             "description": self.find_description(path),
-            "search_term": self.search_terms_from_path(lora_on_disk.filename) + " " + (lora_on_disk.hash or ""),
+            "search_term": f"{self.search_terms_from_path(lora_on_disk.filename)} "
+            + (lora_on_disk.hash or ""),
             "local_preview": f"{path}.{shared.opts.samples_format}",
             "metadata": lora_on_disk.metadata,
-            "sort_keys": {'default': index, **self.get_sort_keys(lora_on_disk.filename)},
+            "sort_keys": {
+                'default': index,
+                **self.get_sort_keys(lora_on_disk.filename),
+            },
             "sd_version": lora_on_disk.sd_version.name,
         }
 
         self.read_user_metadata(item)
         activation_text = item["user_metadata"].get("activation text")
         preferred_weight = item["user_metadata"].get("preferred weight", 0.0)
-        item["prompt"] = quote_js(f"<lora:{alias}:") + " + " + (str(preferred_weight) if preferred_weight else "opts.extra_networks_default_multiplier") + " + " + quote_js(">")
+        item["prompt"] = (
+            f'{quote_js(f"<lora:{alias}:")} + '
+            + (
+                str(preferred_weight)
+                if preferred_weight
+                else "opts.extra_networks_default_multiplier"
+            )
+            + " + "
+            + quote_js(">")
+        )
 
         if activation_text:
-            item["prompt"] += " + " + quote_js(" " + activation_text)
+            item["prompt"] += f' + {quote_js(f" {activation_text}")}'
 
         sd_version = item["user_metadata"].get("sd version")
         if sd_version in network.SdVersion.__members__:

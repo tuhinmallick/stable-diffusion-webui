@@ -175,9 +175,7 @@ def inference(img, model, tile, tile_overlap, window_size, scale):
                 ..., h_idx * sf: (h_idx + tile) * sf, w_idx * sf: (w_idx + tile) * sf
                 ].add_(out_patch_mask)
                 pbar.update(1)
-    output = E.div_(W)
-
-    return output
+    return E.div_(W)
 
 
 def on_ui_settings():

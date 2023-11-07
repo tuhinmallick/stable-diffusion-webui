@@ -317,9 +317,12 @@ def list_scripts(scriptdirname, extension, *, include_extensions=True):
 
     basedir = os.path.join(paths.script_path, scriptdirname)
     if os.path.exists(basedir):
-        for filename in sorted(os.listdir(basedir)):
-            scripts_list.append(ScriptFile(paths.script_path, filename, os.path.join(basedir, filename)))
-
+        scripts_list.extend(
+            ScriptFile(
+                paths.script_path, filename, os.path.join(basedir, filename)
+            )
+            for filename in sorted(os.listdir(basedir))
+        )
     if include_extensions:
         for ext in extensions.active():
             scripts_list += ext.list_files(scriptdirname, extension)

@@ -11,8 +11,7 @@ class FIFOLock(object):
 
     def acquire(self, blocking=True):
         with self._inner_lock:
-            lock_acquired = self._lock.acquire(False)
-            if lock_acquired:
+            if lock_acquired := self._lock.acquire(False):
                 return True
             elif not blocking:
                 return False
