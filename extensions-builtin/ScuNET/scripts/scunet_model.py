@@ -79,9 +79,7 @@ class UpscalerScuNET(modules.upscaler.Upscaler):
                         ..., h_idx * sf: (h_idx + tile) * sf, w_idx * sf: (w_idx + tile) * sf
                     ].add_(out_patch_mask)
                     pbar.update(1)
-        output = E.div_(W)
-
-        return output
+        return E.div_(W)
 
     def do_upscale(self, img: PIL.Image.Image, selected_file):
 

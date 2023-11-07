@@ -74,9 +74,11 @@ class CFGDenoiser(torch.nn.Module):
 
     def combine_denoised_for_edit_model(self, x_out, cond_scale):
         out_cond, out_img_cond, out_uncond = x_out.chunk(3)
-        denoised = out_uncond + cond_scale * (out_cond - out_img_cond) + self.image_cfg_scale * (out_img_cond - out_uncond)
-
-        return denoised
+        return (
+            out_uncond
+            + cond_scale * (out_cond - out_img_cond)
+            + self.image_cfg_scale * (out_img_cond - out_uncond)
+        )
 
     def get_pred_x0(self, x_in, x_out, sigma):
         return x_out

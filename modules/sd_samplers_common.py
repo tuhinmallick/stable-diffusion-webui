@@ -91,7 +91,7 @@ def images_tensor_to_samples(image, approximation=None, model=None):
 
     if approximation == 3:
         image = image.to(devices.device, devices.dtype)
-        x_latent = sd_vae_taesd.encoder_model()(image)
+        return sd_vae_taesd.encoder_model()(image)
     else:
         if model is None:
             model = shared.sd_model
@@ -99,17 +99,20 @@ def images_tensor_to_samples(image, approximation=None, model=None):
 
         image = image.to(shared.device, dtype=devices.dtype_vae)
         image = image * 2 - 1
-        if len(image) > 1:
-            x_latent = torch.stack([
-                model.get_first_stage_encoding(
-                    model.encode_first_stage(torch.unsqueeze(img, 0))
-                )[0]
-                for img in image
-            ])
-        else:
-            x_latent = model.get_first_stage_encoding(model.encode_first_stage(image))
-
-    return x_latent
+        return (
+            torch.stack(
+                [
+                    model.get_first_stage_encoding(
+                        model.encode_first_stage(torch.unsqueeze(img, 0))
+                    )[0]
+                    for img in image
+                ]
+            )
+            if len(image) > 1
+            else model.get_first_stage_encoding(
+                model.encode_first_stage(image)
+            )
+        )
 
 
 def store_latent(decoded):
@@ -133,10 +136,7 @@ def is_sampler_using_eta_noise_seed_delta(p):
     if eta is None and sampler_config is not None:
         eta = 0 if sampler_config.options.get("default_eta_is_0", False) else 1.0
 
-    if eta == 0:
-        return False
-
-    return sampler_config.options.get("uses_ensd", False)
+    return False if eta == 0 else sampler_config.options.get("uses_ensd", False)
 
 
 class InterruptedException(BaseException):
@@ -284,11 +284,12 @@ class Sampler:
 
         k_diffusion.sampling.torch = TorchHijack(p)
 
-        extra_params_kwargs = {}
-        for param_name in self.extra_params:
-            if hasattr(p, param_name) and param_name in inspect.signature(self.func).parameters:
-                extra_params_kwargs[param_name] = getattr(p, param_name)
-
+        extra_params_kwargs = {
+            param_name: getattr(p, param_name)
+            for param_name in self.extra_params
+            if hasattr(p, param_name)
+            and param_name in inspect.signature(self.func).parameters
+        }
         if 'eta' in inspect.signature(self.func).parameters:
             if self.eta != self.eta_default:
                 p.extra_generation_params[self.eta_infotext_field] = self.eta

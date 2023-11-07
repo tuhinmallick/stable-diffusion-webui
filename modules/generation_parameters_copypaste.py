@@ -77,8 +77,7 @@ def image_from_url_text(filedata):
         filedata = filedata[len("data:image/png;base64,"):]
 
     filedata = base64.decodebytes(filedata.encode('utf-8'))
-    image = Image.open(io.BytesIO(filedata))
-    return image
+    return Image.open(io.BytesIO(filedata))
 
 
 def add_paste_fields(tabname, init_img, fields, override_settings_component=None):
@@ -93,10 +92,10 @@ def add_paste_fields(tabname, init_img, fields, override_settings_component=None
 
 
 def create_buttons(tabs_list):
-    buttons = {}
-    for tab in tabs_list:
-        buttons[tab] = gr.Button(f"Send to {tab}", elem_id=f"{tab}_tab")
-    return buttons
+    return {
+        tab: gr.Button(f"Send to {tab}", elem_id=f"{tab}_tab")
+        for tab in tabs_list
+    }
 
 
 def bind_buttons(buttons, send_image, send_generate_info):
@@ -160,11 +159,7 @@ def connect_paste_params_buttons():
 
 
 def send_image_and_dimensions(x):
-    if isinstance(x, Image.Image):
-        img = x
-    else:
-        img = image_from_url_text(x)
-
+    img = x if isinstance(x, Image.Image) else image_from_url_text(x)
     if shared.opts.send_size and isinstance(img, Image.Image):
         w = img.width
         h = img.height
@@ -374,11 +369,7 @@ def connect_paste(button, paste_fields, input_comp, override_settings_component,
         res = []
 
         for output, key in paste_fields:
-            if callable(key):
-                v = key(params)
-            else:
-                v = params.get(key, None)
-
+            v = key(params) if callable(key) else params.get(key, None)
             if v is None:
                 res.append(gr.update())
             elif isinstance(v, type_of_gr_update):
@@ -387,11 +378,7 @@ def connect_paste(button, paste_fields, input_comp, override_settings_component,
                 try:
                     valtype = type(output.value)
 
-                    if valtype == bool and v == "False":
-                        val = False
-                    else:
-                        val = valtype(v)
-
+                    val = False if valtype == bool and v == "False" else valtype(v)
                     res.append(gr.update(value=val))
                 except Exception:
                     res.append(gr.update())

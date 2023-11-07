@@ -107,11 +107,7 @@ class FrozenCLIPEmbedderWithCustomWordsBase(torch.nn.Module):
             nonlocal last_comma
             nonlocal chunk
 
-            if is_last:
-                token_count += len(chunk.tokens)
-            else:
-                token_count += self.chunk_length
-
+            token_count += len(chunk.tokens) if is_last else self.chunk_length
             to_add = self.chunk_length - len(chunk.tokens)
             if to_add > 0:
                 chunk.tokens += [self.id_end] * to_add
@@ -217,7 +213,7 @@ class FrozenCLIPEmbedderWithCustomWordsBase(torch.nn.Module):
         batch_chunks, token_count = self.process_texts(texts)
 
         used_embeddings = {}
-        chunk_count = max([len(x) for x in batch_chunks])
+        chunk_count = max(len(x) for x in batch_chunks)
 
         zs = []
         for i in range(chunk_count):
@@ -301,15 +297,10 @@ class FrozenCLIPEmbedderWithCustomWords(FrozenCLIPEmbedderWithCustomWordsBase):
         for text, ident in tokens_with_parens:
             mult = 1.0
             for c in text:
-                if c == '[':
+                if c in ['[', ')']:
                     mult /= 1.1
-                if c == ']':
+                elif c in [']', '(']:
                     mult *= 1.1
-                if c == '(':
-                    mult *= 1.1
-                if c == ')':
-                    mult /= 1.1
-
             if mult != 1.0:
                 self.token_mults[ident] = mult
 
@@ -318,27 +309,25 @@ class FrozenCLIPEmbedderWithCustomWords(FrozenCLIPEmbedderWithCustomWordsBase):
         self.id_pad = self.id_end
 
     def tokenize(self, texts):
-        tokenized = self.wrapped.tokenizer(texts, truncation=False, add_special_tokens=False)["input_ids"]
-
-        return tokenized
+        return self.wrapped.tokenizer(
+            texts, truncation=False, add_special_tokens=False
+        )["input_ids"]
 
     def encode_with_transformers(self, tokens):
         outputs = self.wrapped.transformer(input_ids=tokens, output_hidden_states=-opts.CLIP_stop_at_last_layers)
 
-        if opts.CLIP_stop_at_last_layers > 1:
-            z = outputs.hidden_states[-opts.CLIP_stop_at_last_layers]
-            z = self.wrapped.transformer.text_model.final_layer_norm(z)
-        else:
-            z = outputs.last_hidden_state
+        if opts.CLIP_stop_at_last_layers <= 1:
+            return outputs.last_hidden_state
 
-        return z
+        z = outputs.hidden_states[-opts.CLIP_stop_at_last_layers]
+        return self.wrapped.transformer.text_model.final_layer_norm(z)
 
     def encode_embedding_init_text(self, init_text, nvpt):
         embedding_layer = self.wrapped.transformer.text_model.embeddings
         ids = self.wrapped.tokenizer(init_text, max_length=nvpt, return_tensors="pt", add_special_tokens=False)["input_ids"]
-        embedded = embedding_layer.token_embedding.wrapped(ids.to(embedding_layer.token_embedding.wrapped.weight.device)).squeeze(0)
-
-        return embedded
+        return embedding_layer.token_embedding.wrapped(
+            ids.to(embedding_layer.token_embedding.wrapped.weight.device)
+        ).squeeze(0)
 
 
 class FrozenCLIPEmbedderForSDXLWithCustomWords(FrozenCLIPEmbedderWithCustomWords):
@@ -348,9 +337,8 @@ class FrozenCLIPEmbedderForSDXLWithCustomWords(FrozenCLIPEmbedderWithCustomWords
     def encode_with_transformers(self, tokens):
         outputs = self.wrapped.transformer(input_ids=tokens, output_hidden_states=self.wrapped.layer == "hidden")
 
-        if self.wrapped.layer == "last":
-            z = outputs.last_hidden_state
-        else:
-            z = outputs.hidden_states[self.wrapped.layer_idx]
-
-        return z
+        return (
+            outputs.last_hidden_state
+            if self.wrapped.layer == "last"
+            else outputs.hidden_states[self.wrapped.layer_idx]
+        )

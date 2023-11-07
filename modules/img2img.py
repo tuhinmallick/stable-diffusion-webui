@@ -74,7 +74,7 @@ def process_batch(p, input_dir, output_dir, inpaint_mask_dir, args, to_scale=Fal
                 mask_image_dir = Path(inpaint_mask_dir)
                 masks_found = list(mask_image_dir.glob(f"{image_path.stem}.*"))
 
-                if len(masks_found) == 0:
+                if not masks_found:
                     print(f"Warning: mask is not found for {image_path} in {mask_image_dir}. Skipping it.")
                     continue
 

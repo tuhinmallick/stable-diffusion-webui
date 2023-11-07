@@ -77,8 +77,7 @@ def create_generator(seed):
         return rng_philox.Generator(seed)
 
     device = devices.cpu if shared.opts.randn_source == "CPU" or devices.device.type == 'mps' else devices.device
-    generator = torch.Generator(device).manual_seed(int(seed))
-    return generator
+    return torch.Generator(device).manual_seed(int(seed))
 
 
 # from https://discuss.pytorch.org/t/help-regarding-slerp-function-for-generative-model-sampling/32475/3
@@ -92,8 +91,9 @@ def slerp(val, low, high):
 
     omega = torch.acos(dot)
     so = torch.sin(omega)
-    res = (torch.sin((1.0-val)*omega)/so).unsqueeze(1)*low + (torch.sin(val*omega)/so).unsqueeze(1) * high
-    return res
+    return (torch.sin((1.0 - val) * omega) / so).unsqueeze(1) * low + (
+        torch.sin(val * omega) / so
+    ).unsqueeze(1) * high
 
 
 class ImageRNG:
@@ -134,8 +134,8 @@ class ImageRNG:
                 dy = (self.shape[1] - noise_shape[1]) // 2
                 w = noise_shape[2] if dx >= 0 else noise_shape[2] + 2 * dx
                 h = noise_shape[1] if dy >= 0 else noise_shape[1] + 2 * dy
-                tx = 0 if dx < 0 else dx
-                ty = 0 if dy < 0 else dy
+                tx = max(dx, 0)
+                ty = max(dy, 0)
                 dx = max(-dx, 0)
                 dy = max(-dy, 0)
 
@@ -144,8 +144,7 @@ class ImageRNG:
 
             xs.append(noise)
 
-        eta_noise_seed_delta = shared.opts.eta_noise_seed_delta or 0
-        if eta_noise_seed_delta:
+        if eta_noise_seed_delta := shared.opts.eta_noise_seed_delta or 0:
             self.generators = [create_generator(seed + eta_noise_seed_delta) for seed in self.seeds]
 
         return torch.stack(xs).to(shared.device)

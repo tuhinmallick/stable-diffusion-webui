@@ -71,7 +71,12 @@ class CheckpointInfo:
         self.metadata = {}
         if self.is_safetensors:
             try:
-                self.metadata = cache.cached_data_for_file('safetensors-metadata', "checkpoint/" + name, filename, read_metadata)
+                self.metadata = cache.cached_data_for_file(
+                    'safetensors-metadata',
+                    f"checkpoint/{name}",
+                    filename,
+                    read_metadata,
+                )
             except Exception as e:
                 errors.display(e, f"reading metadata for {filename}")
 
@@ -81,7 +86,7 @@ class CheckpointInfo:
         self.hash = model_hash(filename)
 
         self.sha256 = hashes.sha256_from_cache(self.filename, f"checkpoint/{name}")
-        self.shorthash = self.sha256[0:10] if self.sha256 else None
+        self.shorthash = self.sha256[:10] if self.sha256 else None
 
         self.title = name if self.shorthash is None else f'{name} [{self.shorthash}]'
         self.short_title = self.name_for_extra if self.shorthash is None else f'{self.name_for_extra} [{self.shorthash}]'
@@ -100,8 +105,8 @@ class CheckpointInfo:
         if self.sha256 is None:
             return
 
-        shorthash = self.sha256[0:10]
-        if self.shorthash == self.sha256[0:10]:
+        shorthash = self.sha256[:10]
+        if self.shorthash == self.sha256[:10]:
             return self.shorthash
 
         self.shorthash = shorthash
@@ -174,13 +179,25 @@ def get_closet_checkpoint_match(search_string):
     if checkpoint_info is not None:
         return checkpoint_info
 
-    found = sorted([info for info in checkpoints_list.values() if search_string in info.title], key=lambda x: len(x.title))
-    if found:
+    if found := sorted(
+        [
+            info
+            for info in checkpoints_list.values()
+            if search_string in info.title
+        ],
+        key=lambda x: len(x.title),
+    ):
         return found[0]
 
     search_string_without_checksum = re.sub(re_strip_checksum, '', search_string)
-    found = sorted([info for info in checkpoints_list.values() if search_string_without_checksum in info.title], key=lambda x: len(x.title))
-    if found:
+    if found := sorted(
+        [
+            info
+            for info in checkpoints_list.values()
+            if search_string_without_checksum in info.title
+        ],
+        key=lambda x: len(x.title),
+    ):
         return found[0]
 
     return None
@@ -196,7 +213,7 @@ def model_hash(filename):
 
             file.seek(0x100000)
             m.update(file.read(0x10000))
-            return m.hexdigest()[0:8]
+            return m.hexdigest()[:8]
     except FileNotFoundError:
         return 'NOFILE'
 
@@ -273,7 +290,7 @@ def read_metadata_from_safetensors(filename):
         res = {}
         for k, v in json_obj.get("__metadata__", {}).items():
             res[k] = v
-            if isinstance(v, str) and v[0:1] == '{':
+            if isinstance(v, str) and v[:1] == '{':
                 try:
                     res[k] = json.loads(v)
                 except Exception:
@@ -298,8 +315,7 @@ def read_state_dict(checkpoint_file, print_global_state=False, map_location=None
     if print_global_state and "global_step" in pl_sd:
         print(f"Global Step: {pl_sd['global_step']}")
 
-    sd = get_state_dict_from_checkpoint(pl_sd)
-    return sd
+    return get_state_dict_from_checkpoint(pl_sd)
 
 
 def get_checkpoint_state_dict(checkpoint_info: CheckpointInfo, timer):
@@ -530,11 +546,10 @@ def get_empty_cond(sd_model):
     p = processing.StableDiffusionProcessingTxt2Img()
     extra_networks.activate(p, {})
 
-    if hasattr(sd_model, 'conditioner'):
-        d = sd_model.get_learned_conditioning([""])
-        return d['crossattn']
-    else:
+    if not hasattr(sd_model, 'conditioner'):
         return sd_model.cond_stage_model([""])
+    d = sd_model.get_learned_conditioning([""])
+    return d['crossattn']
 
 
 def send_model_to_cpu(m):
@@ -547,10 +562,7 @@ def send_model_to_cpu(m):
 
 
 def model_target_device(m):
-    if lowvram.is_needed(m):
-        return devices.cpu
-    else:
-        return devices.device
+    return devices.cpu if lowvram.is_needed(m) else devices.device
 
 
 def send_model_to_device(m):
@@ -730,10 +742,10 @@ def reload_model_weights(sd_model=None, info=None):
             return sd_model
 
     sd_model = reuse_model_from_already_loaded(sd_model, checkpoint_info, timer)
-    if sd_model is not None and sd_model.sd_checkpoint_info.filename == checkpoint_info.filename:
-        return sd_model
-
     if sd_model is not None:
+        if sd_model.sd_checkpoint_info.filename == checkpoint_info.filename:
+            return sd_model
+
         sd_unet.apply_unet("None")
         send_model_to_cpu(sd_model)
         sd_hijack.model_hijack.undo_hijack(sd_model)

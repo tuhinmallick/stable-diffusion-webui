@@ -88,7 +88,7 @@ class State:
         self.current_image_sampling_step = 0
 
     def dict(self):
-        obj = {
+        return {
             "skipped": self.skipped,
             "interrupted": self.interrupted,
             "job": self.job,
@@ -98,8 +98,6 @@ class State:
             "sampling_step": self.sampling_step,
             "sampling_steps": self.sampling_steps,
         }
-
-        return obj
 
     def begin(self, job: str = "(unknown)"):
         self.sampling_step = 0

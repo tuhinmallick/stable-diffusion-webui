@@ -26,10 +26,7 @@ class CheckpointUserMetadataEditor(ui_extra_networks_user_metadata.UserMetadataE
         user_metadata = self.get_user_metadata(name)
         values = super().put_values_into_components(name)
 
-        return [
-            *values[0:5],
-            user_metadata.get('vae', ''),
-        ]
+        return [*values[:5], user_metadata.get('vae', '')]
 
     def create_editor(self):
         self.create_default_editor_elems()

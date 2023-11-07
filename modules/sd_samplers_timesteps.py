@@ -40,8 +40,7 @@ class CompVisTimestepsVDenoiser(torch.nn.Module):
 
     def forward(self, input, timesteps, **kwargs):
         model_output = self.inner_model.apply_model(input, timesteps, **kwargs)
-        e_t = self.predict_eps_from_z_and_v(input, timesteps, model_output)
-        return e_t
+        return self.predict_eps_from_z_and_v(input, timesteps, model_output)
 
 
 class CFGDenoiserTimesteps(CFGDenoiser):
@@ -58,9 +57,7 @@ class CFGDenoiserTimesteps(CFGDenoiser):
         a_t = self.alphas[ts][:, None, None, None]
         sqrt_one_minus_at = (1 - a_t).sqrt()
 
-        pred_x0 = (x_in - sqrt_one_minus_at * x_out) / a_t.sqrt()
-
-        return pred_x0
+        return (x_in - sqrt_one_minus_at * x_out) / a_t.sqrt()
 
     @property
     def inner_model(self):
@@ -89,9 +86,14 @@ class CompVisSampler(sd_samplers_common.Sampler):
 
         steps += 1 if discard_next_to_last_sigma else 0
 
-        timesteps = torch.clip(torch.asarray(list(range(0, 1000, 1000 // steps)), device=devices.device) + 1, 0, 999)
-
-        return timesteps
+        return torch.clip(
+            torch.asarray(
+                list(range(0, 1000, 1000 // steps)), device=devices.device
+            )
+            + 1,
+            0,
+            999,
+        )
 
     def sample_img2img(self, p, x, noise, conditioning, unconditional_conditioning, steps=None, image_conditioning=None):
         steps, t_enc = sd_samplers_common.setup_img2img_steps(p, steps)

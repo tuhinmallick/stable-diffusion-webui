@@ -76,6 +76,8 @@ def get_learned_conditioning_prompt_schedules(prompts, base_steps, hires_steps=N
     def collect_steps(steps, tree):
         res = [steps]
 
+
+
         class CollectSteps(lark.Visitor):
             def scheduled(self, tree):
                 s = tree.children[-2]
@@ -83,10 +85,7 @@ def get_learned_conditioning_prompt_schedules(prompts, base_steps, hires_steps=N
                 if use_old_scheduling:
                     v = v*steps if v<1 else v
                 else:
-                    if "." in s:
-                        v = (v - flt_offset) * steps
-                    else:
-                        v = (v - int_offset)
+                    v = (v - flt_offset) * steps if "." in s else (v - int_offset)
                 tree.children[-2] = min(steps, int(v))
                 if tree.children[-2] >= 1:
                     res.append(tree.children[-2])
@@ -94,17 +93,23 @@ def get_learned_conditioning_prompt_schedules(prompts, base_steps, hires_steps=N
             def alternate(self, tree):
                 res.extend(range(1, steps+1))
 
+
         CollectSteps().visit(tree)
         return sorted(set(res))
 
     def at_step(step, tree):
+
+
+
         class AtStep(lark.Transformer):
             def scheduled(self, args):
                 before, after, _, when, _ = args
                 yield before or () if step <= when else after
+
             def alternate(self, args):
                 args = ["" if not arg else arg for arg in args]
                 yield args[(step - 1) % len(args)]
+
             def start(self, args):
                 def flatten(x):
                     if isinstance(x, str):
@@ -113,11 +118,14 @@ def get_learned_conditioning_prompt_schedules(prompts, base_steps, hires_steps=N
                         for gen in x:
                             yield from flatten(gen)
                 return ''.join(flatten(args))
+
             def plain(self, args):
                 yield args[0].value
+
             def __default__(self, data, children, meta):
-                for child in children:
-                    yield child
+                yield from children
+
+
         return AtStep().transform(tree)
 
     def get_schedule(prompt):
@@ -261,10 +269,15 @@ def get_multicond_learned_conditioning(model, prompts, steps, hires_steps=None, 
 
     learned_conditioning = get_learned_conditioning(model, prompt_flat_list, steps, hires_steps, use_old_scheduling)
 
-    res = []
-    for indexes in res_indexes:
-        res.append([ComposableScheduledPromptConditioning(learned_conditioning[i], weight) for i, weight in indexes])
-
+    res = [
+        [
+            ComposableScheduledPromptConditioning(
+                learned_conditioning[i], weight
+            )
+            for i, weight in indexes
+        ]
+        for indexes in res_indexes
+    ]
     return MulticondLearnedConditioning(shape=(len(prompts),), batch=res)
 
 
@@ -290,12 +303,14 @@ def reconstruct_cond_batch(c: List[List[ScheduledPromptConditioning]], current_s
         res = torch.zeros((len(c),) + param.shape, device=param.device, dtype=param.dtype)
 
     for i, cond_schedule in enumerate(c):
-        target_index = 0
-        for current, entry in enumerate(cond_schedule):
-            if current_step <= entry.end_at_step:
-                target_index = current
-                break
-
+        target_index = next(
+            (
+                current
+                for current, entry in enumerate(cond_schedule)
+                if current_step <= entry.end_at_step
+            ),
+            0,
+        )
         if is_dict:
             for k, param in cond_schedule[target_index].cond.items():
                 res[k][i] = param
@@ -308,7 +323,7 @@ def reconstruct_cond_batch(c: List[List[ScheduledPromptConditioning]], current_s
 def stack_conds(tensors):
     # if prompts have wildly different lengths above the limit we'll get tensors of different shapes
     # and won't be able to torch.stack them. So this fixes that.
-    token_count = max([x.shape[0] for x in tensors])
+    token_count = max(x.shape[0] for x in tensors)
     for i in range(len(tensors)):
         if tensors[i].shape[0] != token_count:
             last_vector = tensors[i][-1:]
@@ -329,12 +344,16 @@ def reconstruct_multicond_batch(c: MulticondLearnedConditioning, current_step):
         conds_for_batch = []
 
         for composable_prompt in composable_prompts:
-            target_index = 0
-            for current, entry in enumerate(composable_prompt.schedules):
-                if current_step <= entry.end_at_step:
-                    target_index = current
-                    break
-
+            target_index = next(
+                (
+                    current
+                    for current, entry in enumerate(
+                        composable_prompt.schedules
+                    )
+                    if current_step <= entry.end_at_step
+                ),
+                0,
+            )
             conds_for_batch.append((len(tensors), composable_prompt.weight))
             tensors.append(composable_prompt.schedules[target_index].cond)
 
@@ -444,7 +463,7 @@ def parse_prompt_attention(text):
     for pos in square_brackets:
         multiply_range(pos, square_bracket_multiplier)
 
-    if len(res) == 0:
+    if not res:
         res = [["", 1.0]]
 
     # merge runs of identical weights

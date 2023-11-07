@@ -131,7 +131,11 @@ class InputAccordion(gr.Checkbox):
         ```
         """
 
-        return gr.Column(elem_id=self.accordion_id + '-extra', elem_classes='input-accordion-extra', min_width=0)
+        return gr.Column(
+            elem_id=f'{self.accordion_id}-extra',
+            elem_classes='input-accordion-extra',
+            min_width=0,
+        )
 
     def __enter__(self):
         self.accordion.__enter__()

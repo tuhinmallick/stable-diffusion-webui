@@ -21,10 +21,7 @@ checkpoints_loaded = collections.OrderedDict()
 
 
 def get_loaded_vae_name():
-    if loaded_vae_file is None:
-        return None
-
-    return os.path.basename(loaded_vae_file)
+    return None if loaded_vae_file is None else os.path.basename(loaded_vae_file)
 
 
 def get_loaded_vae_hash():
@@ -33,7 +30,7 @@ def get_loaded_vae_hash():
 
     sha256 = hashes.sha256(loaded_vae_file, 'vae')
 
-    return sha256[0:10] if sha256 else None
+    return sha256[:10] if sha256 else None
 
 
 def get_base_vae(model):
@@ -108,11 +105,14 @@ def refresh_vae_list():
 
 def find_vae_near_checkpoint(checkpoint_file):
     checkpoint_path = os.path.basename(checkpoint_file).rsplit('.', 1)[0]
-    for vae_file in vae_dict.values():
-        if os.path.basename(vae_file).startswith(checkpoint_path):
-            return vae_file
-
-    return None
+    return next(
+        (
+            vae_file
+            for vae_file in vae_dict.values()
+            if os.path.basename(vae_file).startswith(checkpoint_path)
+        ),
+        None,
+    )
 
 
 @dataclass
@@ -187,17 +187,20 @@ def resolve_vae(checkpoint_file) -> VaeResolution:
 
 def load_vae_dict(filename, map_location):
     vae_ckpt = sd_models.read_state_dict(filename, map_location=map_location)
-    vae_dict_1 = {k: v for k, v in vae_ckpt.items() if k[0:4] != "loss" and k not in vae_ignore_keys}
-    return vae_dict_1
+    return {
+        k: v
+        for k, v in vae_ckpt.items()
+        if k[:4] != "loss" and k not in vae_ignore_keys
+    }
 
 
 def load_vae(model, vae_file=None, vae_source="from unknown source"):
     global vae_dict, base_vae, loaded_vae_file
-    # save_settings = False
-
-    cache_enabled = shared.opts.sd_vae_checkpoint_cache > 0
-
     if vae_file:
+        # save_settings = False
+
+        cache_enabled = shared.opts.sd_vae_checkpoint_cache > 0
+
         if cache_enabled and vae_file in checkpoints_loaded:
             # use vae checkpoint cache
             print(f"Loading VAE weights {vae_source}: cached {get_filename(vae_file)}")

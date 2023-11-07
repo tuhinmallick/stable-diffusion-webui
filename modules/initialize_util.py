@@ -113,9 +113,7 @@ def get_gradio_auth_creds():
 
     def process_credential_line(s):
         s = s.strip()
-        if not s:
-            return None
-        return tuple(s.split(':', 1))
+        return None if not s else tuple(s.split(':', 1))
 
     if cmd_opts.gradio_auth:
         for cred in cmd_opts.gradio_auth.split(','):
@@ -125,7 +123,7 @@ def get_gradio_auth_creds():
 
     if cmd_opts.gradio_auth_path:
         with open(cmd_opts.gradio_auth_path, 'r', encoding="utf8") as file:
-            for line in file.readlines():
+            for line in file:
                 for cred in line.strip().split(','):
                     cred = process_credential_line(cred)
                     if cred:
@@ -143,7 +141,7 @@ def dumpstacks():
         for filename, lineno, name, line in traceback.extract_stack(stack):
             code.append(f"""File: "{filename}", line {lineno}, in {name}""")
             if line:
-                code.append("  " + line.strip())
+                code.append(f"  {line.strip()}")
 
     print("\n".join(code))
 

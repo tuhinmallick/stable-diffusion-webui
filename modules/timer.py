@@ -59,8 +59,7 @@ class Timer:
     def subcategory(self, name):
         self.elapsed()
 
-        subcat = TimerSubcategory(self, name)
-        return subcat
+        return TimerSubcategory(self, name)
 
     def summary(self):
         res = f"{self.total:.1f}s"

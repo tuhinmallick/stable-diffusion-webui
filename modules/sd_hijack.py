@@ -245,8 +245,7 @@ class StableDiffusionModelHijack:
         ldm.modules.diffusionmodules.openaimodel.UNetModel.forward = sd_unet.UNetModel_forward
 
     def undo_hijack(self, m):
-        conditioner = getattr(m, 'conditioner', None)
-        if conditioner:
+        if conditioner := getattr(m, 'conditioner', None):
             for i in range(len(conditioner.embedders)):
                 embedder = conditioner.embedders[i]
                 if isinstance(embedder, (sd_hijack_open_clip.FrozenOpenCLIPEmbedderWithCustomWords, sd_hijack_open_clip.FrozenOpenCLIPEmbedder2WithCustomWords)):
@@ -320,7 +319,11 @@ class EmbeddingsWithFixes(torch.nn.Module):
 
         inputs_embeds = self.wrapped(input_ids)
 
-        if batch_fixes is None or len(batch_fixes) == 0 or max([len(x) for x in batch_fixes]) == 0:
+        if (
+            batch_fixes is None
+            or len(batch_fixes) == 0
+            or max(len(x) for x in batch_fixes) == 0
+        ):
             return inputs_embeds
 
         vecs = []
@@ -329,7 +332,13 @@ class EmbeddingsWithFixes(torch.nn.Module):
                 vec = embedding.vec[self.textual_inversion_key] if isinstance(embedding.vec, dict) else embedding.vec
                 emb = devices.cond_cast_unet(vec)
                 emb_len = min(tensor.shape[0] - offset - 1, emb.shape[0])
-                tensor = torch.cat([tensor[0:offset + 1], emb[0:emb_len], tensor[offset + 1 + emb_len:]])
+                tensor = torch.cat(
+                    [
+                        tensor[: offset + 1],
+                        emb[:emb_len],
+                        tensor[offset + 1 + emb_len :],
+                    ]
+                )
 
             vecs.append(tensor)
 

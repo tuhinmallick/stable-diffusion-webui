@@ -16,7 +16,7 @@ class ExtraNetworksPageHypernetworks(ui_extra_networks.ExtraNetworksPage):
         full_path = shared.hypernetworks[name]
         path, ext = os.path.splitext(full_path)
         sha256 = sha256_from_cache(full_path, f'hypernet/{name}')
-        shorthash = sha256[0:10] if sha256 else None
+        shorthash = sha256[:10] if sha256 else None
 
         return {
             "name": name,
@@ -24,8 +24,10 @@ class ExtraNetworksPageHypernetworks(ui_extra_networks.ExtraNetworksPage):
             "shorthash": shorthash,
             "preview": self.find_preview(path),
             "description": self.find_description(path),
-            "search_term": self.search_terms_from_path(path) + " " + (sha256 or ""),
-            "prompt": quote_js(f"<hypernet:{name}:") + " + opts.extra_networks_default_multiplier + " + quote_js(">"),
+            "search_term": f"{self.search_terms_from_path(path)} "
+            + (sha256 or ""),
+            "prompt": f'{quote_js(f"<hypernet:{name}:")} + opts.extra_networks_default_multiplier + '
+            + quote_js(">"),
             "local_preview": f"{path}.preview.{shared.opts.samples_format}",
             "sort_keys": {'default': index, **self.get_sort_keys(path + ext)},
         }

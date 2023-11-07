@@ -42,8 +42,7 @@ opt_f = 8
 
 def setup_color_correction(image):
     logging.info("Calibrating color correction.")
-    correction_target = cv2.cvtColor(np.asarray(image.copy()), cv2.COLOR_RGB2LAB)
-    return correction_target
+    return cv2.cvtColor(np.asarray(image.copy()), cv2.COLOR_RGB2LAB)
 
 
 def apply_color_correction(correction, original_image):
@@ -296,9 +295,10 @@ class StableDiffusionProcessing:
         return conditioning
 
     def edit_image_conditioning(self, source_image):
-        conditioning_image = images_tensor_to_samples(source_image*0.5+0.5, approximation_indexes.get(opts.sd_vae_encode_method))
-
-        return conditioning_image
+        return images_tensor_to_samples(
+            source_image * 0.5 + 0.5,
+            approximation_indexes.get(opts.sd_vae_encode_method),
+        )
 
     def unclip_image_conditioning(self, source_image):
         c_adm = self.sd_model.embedder(source_image)
@@ -312,19 +312,18 @@ class StableDiffusionProcessing:
         self.is_using_inpainting_conditioning = True
 
         # Handle the different mask inputs
-        if image_mask is not None:
-            if torch.is_tensor(image_mask):
-                conditioning_mask = image_mask
-            else:
-                conditioning_mask = np.array(image_mask.convert("L"))
-                conditioning_mask = conditioning_mask.astype(np.float32) / 255.0
-                conditioning_mask = torch.from_numpy(conditioning_mask[None, None])
-
-                # Inpainting model uses a discretized mask as input, so we round to either 1.0 or 0.0
-                conditioning_mask = torch.round(conditioning_mask)
-        else:
+        if image_mask is None:
             conditioning_mask = source_image.new_ones(1, 1, *source_image.shape[-2:])
 
+        elif torch.is_tensor(image_mask):
+            conditioning_mask = image_mask
+        else:
+            conditioning_mask = np.array(image_mask.convert("L"))
+            conditioning_mask = conditioning_mask.astype(np.float32) / 255.0
+            conditioning_mask = torch.from_numpy(conditioning_mask[None, None])
+
+            # Inpainting model uses a discretized mask as input, so we round to either 1.0 or 0.0
+            conditioning_mask = torch.round(conditioning_mask)
         # Create another latent image, this time with a masked version of the original input.
         # Smoothly interpolate between the masked and unmasked latent conditioning image using a parameter.
         conditioning_mask = conditioning_mask.to(device=source_image.device, dtype=source_image.dtype)
@@ -630,10 +629,7 @@ def get_fixed_seed(seed):
         except Exception:
             seed = -1
 
-    if seed == -1:
-        return int(random.randrange(4294967294))
-
-    return seed
+    return random.randrange(4294967294) if seed == -1 else seed
 
 
 def fix_seed(p):
@@ -724,7 +720,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
             if k == 'sd_model_checkpoint':
                 sd_models.reload_model_weights()
 
-            if k == 'sd_vae':
+            elif k == 'sd_vae':
                 sd_vae.reload_vae_weights()
 
         sd_models.apply_token_merging(p.sd_model, p.get_token_merging_ratio())
@@ -1094,44 +1090,45 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
                 self.truncate_y = (self.hr_upscale_to_y - target_h) // opt_f
 
     def init(self, all_prompts, all_seeds, all_subseeds):
-        if self.enable_hr:
-            if self.hr_checkpoint_name:
-                self.hr_checkpoint_info = sd_models.get_closet_checkpoint_match(self.hr_checkpoint_name)
+        if not self.enable_hr:
+            return
+        if self.hr_checkpoint_name:
+            self.hr_checkpoint_info = sd_models.get_closet_checkpoint_match(self.hr_checkpoint_name)
 
-                if self.hr_checkpoint_info is None:
-                    raise Exception(f'Could not find checkpoint with name {self.hr_checkpoint_name}')
+            if self.hr_checkpoint_info is None:
+                raise Exception(f'Could not find checkpoint with name {self.hr_checkpoint_name}')
 
-                self.extra_generation_params["Hires checkpoint"] = self.hr_checkpoint_info.short_title
+            self.extra_generation_params["Hires checkpoint"] = self.hr_checkpoint_info.short_title
 
-            if self.hr_sampler_name is not None and self.hr_sampler_name != self.sampler_name:
-                self.extra_generation_params["Hires sampler"] = self.hr_sampler_name
+        if self.hr_sampler_name is not None and self.hr_sampler_name != self.sampler_name:
+            self.extra_generation_params["Hires sampler"] = self.hr_sampler_name
 
-            if tuple(self.hr_prompt) != tuple(self.prompt):
-                self.extra_generation_params["Hires prompt"] = self.hr_prompt
+        if tuple(self.hr_prompt) != tuple(self.prompt):
+            self.extra_generation_params["Hires prompt"] = self.hr_prompt
 
-            if tuple(self.hr_negative_prompt) != tuple(self.negative_prompt):
-                self.extra_generation_params["Hires negative prompt"] = self.hr_negative_prompt
+        if tuple(self.hr_negative_prompt) != tuple(self.negative_prompt):
+            self.extra_generation_params["Hires negative prompt"] = self.hr_negative_prompt
 
-            self.latent_scale_mode = shared.latent_upscale_modes.get(self.hr_upscaler, None) if self.hr_upscaler is not None else shared.latent_upscale_modes.get(shared.latent_upscale_default_mode, "nearest")
-            if self.enable_hr and self.latent_scale_mode is None:
-                if not any(x.name == self.hr_upscaler for x in shared.sd_upscalers):
-                    raise Exception(f"could not find upscaler named {self.hr_upscaler}")
+        self.latent_scale_mode = shared.latent_upscale_modes.get(self.hr_upscaler, None) if self.hr_upscaler is not None else shared.latent_upscale_modes.get(shared.latent_upscale_default_mode, "nearest")
+        if self.enable_hr and self.latent_scale_mode is None:
+            if all(x.name != self.hr_upscaler for x in shared.sd_upscalers):
+                raise Exception(f"could not find upscaler named {self.hr_upscaler}")
 
-            self.calculate_target_resolution()
+        self.calculate_target_resolution()
 
-            if not state.processing_has_refined_job_count:
-                if state.job_count == -1:
-                    state.job_count = self.n_iter
+        if not state.processing_has_refined_job_count:
+            if state.job_count == -1:
+                state.job_count = self.n_iter
 
-                shared.total_tqdm.updateTotal((self.steps + (self.hr_second_pass_steps or self.steps)) * state.job_count)
-                state.job_count = state.job_count * 2
-                state.processing_has_refined_job_count = True
+            shared.total_tqdm.updateTotal((self.steps + (self.hr_second_pass_steps or self.steps)) * state.job_count)
+            state.job_count = state.job_count * 2
+            state.processing_has_refined_job_count = True
 
-            if self.hr_second_pass_steps:
-                self.extra_generation_params["Hires steps"] = self.hr_second_pass_steps
+        if self.hr_second_pass_steps:
+            self.extra_generation_params["Hires steps"] = self.hr_second_pass_steps
 
-            if self.hr_upscaler is not None:
-                self.extra_generation_params["Hires upscaler"] = self.hr_upscaler
+        if self.hr_upscaler is not None:
+            self.extra_generation_params["Hires upscaler"] = self.hr_upscaler
 
     def sample(self, conditioning, unconditional_conditioning, seeds, subseeds, subseed_strength, prompts):
         self.sampler = sd_samplers.create_sampler(self.sampler_name, self.sd_model)
@@ -1325,10 +1322,7 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
                     extra_networks.activate(self, self.extra_network_data)
 
     def get_conds(self):
-        if self.is_hr_pass:
-            return self.hr_c, self.hr_uc
-
-        return super().get_conds()
+        return (self.hr_c, self.hr_uc) if self.is_hr_pass else super().get_conds()
 
     def parse_extra_network_prompts(self):
         res = super().parse_extra_network_prompts()
@@ -1376,9 +1370,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
 
     @property
     def mask_blur(self):
-        if self.mask_blur_x == self.mask_blur_y:
-            return self.mask_blur_x
-        return None
+        return self.mask_blur_x if self.mask_blur_x == self.mask_blur_y else None
 
     @mask_blur.setter
     def mask_blur(self, value):
